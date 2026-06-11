@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: one-click-poster-backend
+    env: python
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: python main.py serve
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.10.11
+      - key: FACEBOOK_PAGE_ID
+        sync: false
+      - key: FACEBOOK_ACCESS_TOKEN
+        sync: false
+      - key: INSTAGRAM_ACCOUNT_ID
+        sync: false
+      - key: INSTAGRAM_ACCESS_TOKEN
+        sync: false
+      - key: LINKEDIN_ACCESS_TOKEN
+        sync: false
+      - key: LINKEDIN_AUTHOR_URN
+        sync: false

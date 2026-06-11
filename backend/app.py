@@ -192,4 +192,8 @@ dist_path = Path(__file__).parent.parent / "frontend" / "dist"
 if dist_path.exists():
     from fastapi.staticfiles import StaticFiles
     app.mount("/", StaticFiles(directory=str(dist_path), html=True), name="static")
+else:
+    @app.api_route("/", methods=["GET", "HEAD"])
+    def root():
+        return {"message": "One-Click Social Poster API is running! Frontend is not built yet (run npm run build in frontend). API docs at /docs."}
 
