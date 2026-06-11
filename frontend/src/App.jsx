@@ -265,53 +265,6 @@ function App() {
         <p className="app-subtitle">Publish updates automatically to Facebook, Instagram, and LinkedIn in one click.</p>
       </header>
 
-      {/* Connection Status Section */}
-      <section className="config-section">
-        <h2 className="section-title">
-          <span>📡</span> Connection Channels
-        </h2>
-        <div className="config-grid">
-          {["facebook", "instagram", "linkedin"].map((platform) => {
-            const isConnected = config?.status?.[platform];
-            const details = config?.details?.[platform] || {};
-            
-            return (
-              <div key={platform} className={`platform-status-card glass-panel ${isConnected ? "connected" : "disconnected"}`}>
-                <div className="platform-header">
-                  <div className="platform-info">
-                    <span className={`${platform}-icon-wrap`}>
-                      {getPlatformIcon(platform)}
-                    </span>
-                    <span className="platform-name">
-                      {platform.charAt(0).toUpperCase() + platform.slice(1)}
-                    </span>
-                  </div>
-                  <span className={`status-badge ${isConnected ? "connected" : "disconnected"}`}>
-                    <span className="status-dot"></span>
-                    {isConnected ? "Connected" : "Not Setup"}
-                  </span>
-                </div>
-                
-                {/* Render credentials status if available */}
-                <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginTop: "4px" }}>
-                  {Object.keys(details).map((key) => {
-                    const cred = details[key];
-                    return (
-                      <div key={key} className="credential-item">
-                        <span className="credential-key">{key.replace(`${platform.toUpperCase()}_`, "").replace("_", " ")}</span>
-                        <span className={`credential-val ${!cred.present ? "missing" : ""}`}>
-                          {cred.present ? cred.masked : "Missing"}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </section>
-
       {/* Main Dashboard Grid */}
       <div className="dashboard-grid">
         {postResult ? (
