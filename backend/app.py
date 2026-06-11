@@ -106,6 +106,14 @@ async def post_content(
     if not selected_platforms:
         raise HTTPException(status_code=400, detail="At least one platform must be selected.")
         
+    SUPPORTED_PLATFORMS = {"facebook", "instagram", "linkedin"}
+    for platform in selected_platforms:
+        if platform not in SUPPORTED_PLATFORMS:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Platform '{platform}' is not supported. Supported platforms are: {', '.join(sorted(SUPPORTED_PLATFORMS))}."
+            )
+        
     # Check config for selected platforms
     try:
         cfg = AppConfig.from_env(selected_platforms)

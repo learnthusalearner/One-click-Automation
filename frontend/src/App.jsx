@@ -9,13 +9,13 @@ const API_BASE =
 
 // ── Icons ──────────────────────────────────────────────────────────
 const FacebookIcon = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
     <path d="M22 12c0-5.52-4.48-10-10-10S2 6.48 2 12c0 4.84 3.44 8.87 8 9.8V15H8v-3h2V9.5C10 7.57 11.57 6 13.5 6H16v3h-2c-.55 0-1 .45-1 1v2h3v3h-3v6.95c4.56-.93 8-4.96 8-9.75z"/>
   </svg>
 );
 
 const InstagramIcon = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
     <rect x="2" y="2" width="20" height="20" rx="5" ry="5"/>
     <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/>
     <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/>
@@ -23,7 +23,7 @@ const InstagramIcon = () => (
 );
 
 const LinkedInIcon = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
     <path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.779-1.75-1.75s.784-1.75 1.75-1.75 1.75.779 1.75 1.75-.784 1.75-1.75 1.75zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z"/>
   </svg>
 );
@@ -68,8 +68,18 @@ function App() {
   const [config, setConfig] = useState(null);
   const [loadingConfig, setLoadingConfig] = useState(true);
   const [caption, setCaption] = useState("");
+  
+  // Platform settings
+  const [selectedPlatforms, setSelectedPlatforms] = useState([]);
+  
+  // Image options
+  const [imageSource, setImageSource] = useState("file"); // "file" or "url"
   const [imageFile, setImageFile] = useState(null);
   const [imagePreviewUrl, setImagePreviewUrl] = useState("");
+  const [imageUrl, setImageUrl] = useState("");
+
+  // UI state
+  const [activePreviewTab, setActivePreviewTab] = useState("facebook");
   const [isPosting, setIsPosting] = useState(false);
   const [postResult, setPostResult] = useState(null);
   const [toasts, setToasts] = useState([]);
@@ -86,6 +96,18 @@ function App() {
       const res = await fetch(`${API_BASE}/api/config`);
       const data = await res.json();
       setConfig(data);
+      
+      // Auto-select all connected platforms
+      const connected = [];
+      if (data?.status?.facebook) connected.push("facebook");
+      if (data?.status?.instagram) connected.push("instagram");
+      if (data?.status?.linkedin) connected.push("linkedin");
+      setSelectedPlatforms(connected);
+      
+      // Default preview tab to first connected platform
+      if (connected.length > 0) {
+        setActivePreviewTab(connected[0]);
+      }
     } catch (err) {
       console.error(err);
       addToast("Failed to connect to backend API.", "error");
@@ -148,17 +170,20 @@ function App() {
     }
   };
 
+  const togglePlatform = (platform) => {
+    if (!config?.status?.[platform]) return; // Cannot toggle if not configured
+    setSelectedPlatforms((prev) =>
+      prev.includes(platform)
+        ? prev.filter((p) => p !== platform)
+        : [...prev, platform]
+    );
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    // Find all configured platforms
-    const activePlatforms = [];
-    if (config?.status?.facebook) activePlatforms.push("facebook");
-    if (config?.status?.instagram) activePlatforms.push("instagram");
-    if (config?.status?.linkedin) activePlatforms.push("linkedin");
 
-    if (activePlatforms.length === 0) {
-      addToast("No connected social channels configured. Check .env file.", "error");
+    if (selectedPlatforms.length === 0) {
+      addToast("At least one platform must be selected.", "error");
       return;
     }
     if (!caption.trim()) {
@@ -171,10 +196,12 @@ function App() {
 
     const formData = new FormData();
     formData.append("caption", caption);
-    formData.append("platforms", JSON.stringify(activePlatforms));
+    formData.append("platforms", JSON.stringify(selectedPlatforms));
 
-    if (imageFile) {
+    if (imageSource === "file" && imageFile) {
       formData.append("image", imageFile);
+    } else if (imageSource === "url" && imageUrl.trim()) {
+      formData.append("image_url", imageUrl.trim());
     }
 
     try {
@@ -215,157 +242,345 @@ function App() {
   const resetForm = () => {
     setCaption("");
     removeSelectedFile();
+    setImageUrl("");
     setPostResult(null);
   };
 
+  // Get active preview image
+  const getPreviewImage = () => {
+    if (imageSource === "file") {
+      return imagePreviewUrl;
+    }
+    return imageUrl.trim();
+  };
+
   return (
-    <div className="app-container" style={{maxWidth: '600px', padding: '30px 16px'}}>
+    <div className="app-container">
       {/* Header */}
-      <header className="app-header" style={{marginBottom: '20px'}}>
-        <h1 className="app-title" style={{fontSize: '1.8rem'}}>One-Click Social Poster</h1>
-        <p className="app-subtitle" style={{fontSize: '0.9rem'}}>Publish updates automatically to Facebook, Instagram, and LinkedIn in one click.</p>
+      <header className="app-header">
+        <div className="app-title-container">
+          <span className="app-logo">🚀</span>
+          <h1 className="app-title">One-Click Social Poster</h1>
+        </div>
+        <p className="app-subtitle">Publish updates automatically to Facebook, Instagram, and LinkedIn in one click.</p>
       </header>
 
-      {/* Connected Channels status header bar */}
-      <div className="glass-panel" style={{padding: '12px 20px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px'}}>
-        <span style={{fontSize: '0.85rem', fontWeight: '600', color: 'var(--text-secondary)'}}>Active Channels:</span>
-        <div style={{display: 'flex', gap: '12px'}}>
-          {loadingConfig ? (
-            <span style={{fontSize: '0.8rem', color: 'var(--text-muted)'}}>Syncing...</span>
-          ) : (
-            ["facebook", "instagram", "linkedin"].map((platform) => {
-              const isConnected = config?.status?.[platform];
-              return (
-                <div key={platform} style={{display: 'flex', alignItems: 'center', gap: '6px', opacity: isConnected ? 1 : 0.25}} title={`${platform}: ${isConnected ? 'Connected' : 'Not setup'}`}>
-                  <span className={`${platform}-icon-wrap`} style={{display: 'flex'}}>
-                    {getPlatformIcon(platform)}
+      {/* Connection Status Section */}
+      <section className="config-section">
+        <h2 className="section-title">
+          <span>📡</span> Connection Channels
+        </h2>
+        <div className="config-grid">
+          {["facebook", "instagram", "linkedin"].map((platform) => {
+            const isConnected = config?.status?.[platform];
+            const details = config?.details?.[platform] || {};
+            
+            return (
+              <div key={platform} className={`platform-status-card glass-panel ${isConnected ? "connected" : "disconnected"}`}>
+                <div className="platform-header">
+                  <div className="platform-info">
+                    <span className={`${platform}-icon-wrap`}>
+                      {getPlatformIcon(platform)}
+                    </span>
+                    <span className="platform-name">
+                      {platform.charAt(0).toUpperCase() + platform.slice(1)}
+                    </span>
+                  </div>
+                  <span className={`status-badge ${isConnected ? "connected" : "disconnected"}`}>
+                    <span className="status-dot"></span>
+                    {isConnected ? "Connected" : "Not Setup"}
                   </span>
-                  <span className="status-dot" style={{width: '6px', height: '6px', background: isConnected ? 'var(--status-success)' : 'var(--text-muted)', borderRadius: '50%'}}></span>
                 </div>
-              );
-            })
-          )}
-        </div>
-      </div>
-
-      {postResult ? (
-        /* Results View */
-        <div className="results-card glass-panel" style={{padding: '24px'}}>
-          <div className="results-header-status" style={{marginBottom: '20px'}}>
-            <div className={`results-badge-main ${postResult.success ? 'success' : 'failure'}`} style={{width: '50px', height: '50px', fontSize: '1.5rem', margin: '0 auto 10px'}}>
-              {postResult.success ? <CheckIcon /> : <CrossIcon />}
-            </div>
-            <h2 style={{fontSize: '1.2rem'}}>{postResult.success ? 'Post Published!' : 'Failed to Publish'}</h2>
-          </div>
-
-          <div className="results-list" style={{gap: '12px', marginBottom: '20px'}}>
-            {postResult.results.map((r, idx) => (
-              <div key={idx} className="result-row" style={{padding: '12px 16px', borderRadius: '8px'}}>
-                <div className="result-platform-info" style={{gap: '8px'}}>
-                  <span className={`result-status-icon ${r.success ? 'success' : 'error'}`}>
-                    {r.success ? <CheckIcon /> : <CrossIcon />}
-                  </span>
-                  <span className={`${r.platform.toLowerCase()}-icon-wrap`}>
-                    {getPlatformIcon(r.platform.toLowerCase())}
-                  </span>
-                  <span style={{fontSize: '0.9rem', fontWeight: '600'}}>{r.platform}</span>
-                </div>
-                <div>
-                  {r.success ? (
-                    r.url ? (
-                      <a href={r.url} target="_blank" rel="noopener noreferrer" className="result-link" style={{padding: '4px 8px', fontSize: '0.8rem'}}>
-                        Link <ExternalLinkIcon />
-                      </a>
-                    ) : (
-                      <span style={{color: 'var(--text-secondary)', fontSize: '0.8rem'}}>OK</span>
-                    )
-                  ) : (
-                    <span style={{color: 'var(--status-error)', fontSize: '0.8rem', fontStyle: 'italic'}} title={r.error}>Error</span>
-                  )}
+                
+                {/* Render credentials status if available */}
+                <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginTop: "4px" }}>
+                  {Object.keys(details).map((key) => {
+                    const cred = details[key];
+                    return (
+                      <div key={key} className="credential-item">
+                        <span className="credential-key">{key.replace(`${platform.toUpperCase()}_`, "").replace("_", " ")}</span>
+                        <span className={`credential-val ${!cred.present ? "missing" : ""}`}>
+                          {cred.present ? cred.masked : "Missing"}
+                        </span>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
-            ))}
-          </div>
-
-          <button type="button" className="reset-btn" onClick={resetForm} style={{padding: '12px'}}>
-            Create New Post
-          </button>
+            );
+          })}
         </div>
-      ) : (
-        /* Minimal Creator Form */
-        <form className="creator-card glass-panel" onSubmit={handleSubmit} style={{padding: '24px', gap: '20px'}}>
-          {/* Caption */}
-          <div className="form-group" style={{gap: '6px'}}>
-            <label className="form-label" style={{fontSize: '0.85rem'}}>Post Caption</label>
-            <textarea
-              className="form-textarea"
-              placeholder="Write update text..."
-              value={caption}
-              onChange={(e) => setCaption(e.target.value)}
-              style={{minHeight: '100px', fontSize: '0.9rem'}}
-              required
-            />
-          </div>
+      </section>
 
-          {/* Drag & Drop File Zone */}
-          <div className="form-group" style={{gap: '6px'}}>
-            <label className="form-label" style={{fontSize: '0.85rem'}}>Attach Image File</label>
-            {imageFile ? (
-              <div className="image-preview-container" style={{padding: '10px'}}>
-                <img src={imagePreviewUrl} alt="Upload preview" className="preview-thumbnail" style={{width: '50px', height: '50px'}} />
-                <div className="preview-meta">
-                  <div className="preview-filename" style={{fontSize: '0.8rem'}}>{imageFile.name}</div>
-                  <div className="preview-filesize" style={{fontSize: '0.7rem'}}>{(imageFile.size / (1024 * 1024)).toFixed(2)} MB</div>
+      {/* Main Dashboard Grid */}
+      <div className="dashboard-grid">
+        {postResult ? (
+          /* Results View */
+          <div className="results-card glass-panel">
+            <div className="results-header-status">
+              <div className={`results-badge-main ${postResult.success ? 'success' : 'failure'}`}>
+                {postResult.success ? <CheckIcon /> : <CrossIcon />}
+              </div>
+              <h2>{postResult.success ? 'Post Published Successfully!' : 'Failed to Publish'}</h2>
+              <p style={{ color: "var(--text-secondary)", fontSize: "0.9rem" }}>
+                Review details for each channel below.
+              </p>
+            </div>
+
+            <div className="results-list">
+              {postResult.results.map((r, idx) => (
+                <div key={idx} className="result-row">
+                  <div className="result-platform-info">
+                    <span className={`result-status-icon ${r.success ? 'success' : 'error'}`}>
+                      {r.success ? <CheckIcon /> : <CrossIcon />}
+                    </span>
+                    <span className={`${r.platform.toLowerCase()}-icon-wrap`}>
+                      {getPlatformIcon(r.platform.toLowerCase())}
+                    </span>
+                    <span style={{ fontWeight: '600' }}>{r.platform}</span>
+                  </div>
+                  
+                  <div>
+                    {r.success ? (
+                      r.url ? (
+                        <a href={r.url} target="_blank" rel="noopener noreferrer" className="result-link">
+                          View Post <ExternalLinkIcon />
+                        </a>
+                      ) : (
+                        <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Success</span>
+                      )
+                    ) : (
+                      <span className="result-error-msg" title={r.error}>
+                        {r.error || "Unknown Error"}
+                      </span>
+                    )}
+                  </div>
                 </div>
-                <button type="button" className="remove-image-btn" onClick={removeSelectedFile} style={{width: '24px', height: '24px'}}>
-                  <TrashIcon />
+              ))}
+            </div>
+
+            <button type="button" className="reset-btn" onClick={resetForm}>
+              Create Another Post
+            </button>
+          </div>
+        ) : (
+          /* Creator Form */
+          <form className="creator-card glass-panel" onSubmit={handleSubmit}>
+            {/* Platform Selection */}
+            <div className="form-group">
+              <label className="form-label">Target Channels <span style={{fontSize: '0.8rem', fontWeight: 'normal', color: 'var(--text-muted)'}}>(select channels to publish to)</span></label>
+              <div className="platform-selector-grid">
+                {["facebook", "instagram", "linkedin"].map((platform) => {
+                  const isConnected = config?.status?.[platform];
+                  const isSelected = selectedPlatforms.includes(platform);
+                  
+                  return (
+                    <label 
+                      key={platform} 
+                      className={`platform-checkbox-label ${isSelected ? 'selected' : ''} ${!isConnected ? 'disabled' : ''}`}
+                      onClick={() => togglePlatform(platform)}
+                    >
+                      <input 
+                        type="checkbox" 
+                        className="hidden-checkbox"
+                        checked={isSelected}
+                        disabled={!isConnected}
+                        onChange={() => {}} // handled by click
+                      />
+                      <span className={`${platform}-icon-wrap`}>
+                        {getPlatformIcon(platform)}
+                      </span>
+                      <span style={{ fontSize: "0.85rem", fontWeight: "600" }}>
+                        {platform.charAt(0).toUpperCase() + platform.slice(1)}
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Post Caption */}
+            <div className="form-group">
+              <div className="form-label">
+                <span>Post Caption</span>
+                <span className="char-counter">{caption.length} characters</span>
+              </div>
+              <textarea
+                className="form-textarea"
+                placeholder="Share something interesting! Include hashtags like #product #update..."
+                value={caption}
+                onChange={(e) => setCaption(e.target.value)}
+                required
+              />
+            </div>
+
+            {/* Attachment options */}
+            <div className="form-group">
+              <label className="form-label">Attach Image</label>
+              
+              <div className="tabs-container" style={{ marginBottom: "12px" }}>
+                <button 
+                  type="button" 
+                  className={`tab-btn ${imageSource === "file" ? "active" : ""}`}
+                  onClick={() => setImageSource("file")}
+                >
+                  Local Upload
+                </button>
+                <button 
+                  type="button" 
+                  className={`tab-btn ${imageSource === "url" ? "active" : ""}`}
+                  onClick={() => setImageSource("url")}
+                >
+                  Image URL
                 </button>
               </div>
-            ) : (
-              <div
-                className={`drag-drop-zone ${isDragging ? 'dragging' : ''}`}
-                onDragOver={handleDragOver}
-                onDragLeave={handleDragLeave}
-                onDrop={handleDrop}
-                onClick={() => fileInputRef.current?.click()}
-                style={{padding: '24px 16px', gap: '8px'}}
-              >
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  className="file-input-hidden"
-                  accept="image/jpeg,image/png,image/gif"
-                  onChange={handleFileChange}
-                />
-                <span className="upload-icon" style={{color: 'var(--text-secondary)'}}><UploadIcon /></span>
-                <span className="upload-prompt" style={{fontSize: '0.85rem'}}>Drag image here, or click to upload</span>
-              </div>
-            )}
+
+              {imageSource === "file" ? (
+                /* File Upload Zone */
+                imageFile ? (
+                  <div className="image-preview-container">
+                    <img src={imagePreviewUrl} alt="Upload preview" className="preview-thumbnail" />
+                    <div className="preview-meta">
+                      <div className="preview-filename">{imageFile.name}</div>
+                      <div className="preview-filesize">{(imageFile.size / (1024 * 1024)).toFixed(2)} MB</div>
+                    </div>
+                    <button type="button" className="remove-image-btn" onClick={removeSelectedFile}>
+                      <TrashIcon />
+                    </button>
+                  </div>
+                ) : (
+                  <div
+                    className={`drag-drop-zone ${isDragging ? 'dragging' : ''}`}
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                    onDrop={handleDrop}
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      className="file-input-hidden"
+                      accept="image/jpeg,image/png,image/gif"
+                      onChange={handleFileChange}
+                    />
+                    <span className="upload-icon"><UploadIcon /></span>
+                    <span className="upload-prompt">Drag & Drop image here</span>
+                    <span className="upload-subprompt">Supports JPG, PNG, GIF (Max 8-10MB)</span>
+                  </div>
+                )
+              ) : (
+                /* Image URL Input */
+                <div className="url-input-container">
+                  <input
+                    type="url"
+                    className="url-input"
+                    placeholder="https://example.com/image.jpg"
+                    value={imageUrl}
+                    onChange={(e) => setImageUrl(e.target.value)}
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Submit Button */}
+            <button
+              type="submit"
+              className="submit-btn"
+              disabled={isPosting || !caption.trim()}
+            >
+              {isPosting ? (
+                <>
+                  <span className="spinner"></span>
+                  Publishing to selected channels...
+                </>
+              ) : (
+                <>🚀 Publish Update Now</>
+              )}
+            </button>
+          </form>
+        )}
+
+        {/* Live Social Preview Mockup */}
+        <div className="preview-card glass-panel">
+          <h2 className="section-title" style={{ fontSize: "1rem", color: "var(--text-secondary)" }}>
+            <span>👁️</span> Live Post Preview
+          </h2>
+
+          <div className="preview-tabs">
+            {["facebook", "instagram", "linkedin"].map((platform) => {
+              const isActive = activePreviewTab === platform;
+              return (
+                <button
+                  type="button"
+                  key={platform}
+                  className={`preview-tab ${platform}-tab ${isActive ? "active" : ""}`}
+                  onClick={() => setActivePreviewTab(platform)}
+                >
+                  {platform.charAt(0).toUpperCase() + platform.slice(1)}
+                </button>
+              );
+            })}
           </div>
 
-          {/* Submit */}
-          <button
-            type="submit"
-            className="submit-btn"
-            disabled={isPosting || !caption.trim()}
-            style={{padding: '14px', fontSize: '0.95rem', marginTop: '10px'}}
-          >
-            {isPosting ? (
-              <>
-                <span className="spinner" style={{width: '16px', height: '16px'}}></span>
-                Publishing to all active channels...
-              </>
-            ) : (
-              <>Publish Post</>
-            )}
-          </button>
-        </form>
-      )}
+          <div className="phone-mockup">
+            <div className="mockup-header">
+              <div className="mockup-avatar">
+                {activePreviewTab.charAt(0).toUpperCase()}
+              </div>
+              <div className="mockup-meta">
+                <span className="mockup-author">My Brand Account</span>
+                <span className="mockup-time">Just now • 🌍</span>
+              </div>
+            </div>
+
+            <div className={`mockup-content ${!caption ? "empty" : ""}`}>
+              {caption || "Your post description will show up here. Add text in the editor to preview..."}
+            </div>
+
+            <div className="mockup-media-container">
+              {getPreviewImage() ? (
+                <img 
+                  src={getPreviewImage()} 
+                  alt="Post preview" 
+                  className="mockup-media"
+                  onError={(e) => {
+                    // Fallback if URL is invalid/broken
+                    e.target.style.display = "none";
+                  }}
+                />
+              ) : (
+                <div className="mockup-media-placeholder">
+                  <span className="mockup-placeholder-icon">📸</span>
+                  <span>No Image Selected</span>
+                </div>
+              )}
+            </div>
+
+            <div className="mockup-footer">
+              <div className="mockup-action">
+                <span>👍</span>
+                <span>Like</span>
+              </div>
+              <div className="mockup-action">
+                <span>💬</span>
+                <span>Comment</span>
+              </div>
+              <div className="mockup-action">
+                <span>↩️</span>
+                <span>Share</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
 
       {/* Toasts */}
       <div className="toast-container">
         {toasts.map((t) => (
-          <div key={t.id} className={`toast ${t.type}`} style={{padding: '10px 14px', fontSize: '0.85rem'}}>
+          <div key={t.id} className={`toast ${t.type}`}>
+            <span>
+              {t.type === "success" ? "✅" : t.type === "error" ? "❌" : "⚠️"}
+            </span>
             <span>{t.message}</span>
           </div>
         ))}

@@ -9,7 +9,20 @@ Usage examples:
   python main.py check-config
 """
 
+import sys
 from pathlib import Path
+
+# Reconfigure stdout and stderr to UTF-8 to prevent UnicodeEncodeError on Windows terminals
+if sys.stdout.encoding != 'utf-8':
+    try:
+        sys.stdout.reconfigure(encoding='utf-8')
+    except Exception:
+        pass
+if sys.stderr.encoding != 'utf-8':
+    try:
+        sys.stderr.reconfigure(encoding='utf-8')
+    except Exception:
+        pass
 
 import click
 from rich.console import Console
