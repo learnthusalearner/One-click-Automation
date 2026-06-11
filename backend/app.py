@@ -131,11 +131,14 @@ async def post_content(
             with temp_image_path.open("wb") as buffer:
                 shutil.copyfileobj(image.file, buffer)
                 
+            # Prepare image (e.g. convert to JPEG)
+            prepared_path = prepare_image(temp_image_path, TEMP_DIR)
+
             # Perform validation
             validation_errors = {}
             for p in selected_platforms:
                 try:
-                    validate_image(temp_image_path, p)
+                    validate_image(prepared_path, p)
                 except ImageValidationError as e:
                     validation_errors[p] = str(e)
             
@@ -145,9 +148,6 @@ async def post_content(
                     "message": "Image validation failed for one or more platforms.",
                     "errors": validation_errors
                 })
-                
-            # Prepare image (e.g. convert to JPEG)
-            prepared_path = prepare_image(temp_image_path, TEMP_DIR)
             
         payload_base = {
             "image_path": prepared_path,
