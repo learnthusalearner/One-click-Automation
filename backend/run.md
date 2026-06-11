@@ -1,47 +1,53 @@
-# How to Run One-Click Social Poster
+# Run Backend
 
-Follow these steps to run both the FastAPI backend and the React frontend.
+Follow these steps to run the FastAPI backend.
 
 ## Prerequisites
-1. Make sure you have **Python 3.10+** and **NodeJS 18+** installed.
-2. Fill in your credentials inside `backend/.env` (copy `backend/.env.example` to `backend/.env` if not done already).
+1. Make sure you have **Python 3.10+** installed.
+2. Fill in your credentials inside `.env` (copy `.env.example` to `.env` if not done already).
 
 ---
 
-## Step 1: Run the Backend API
+## Run the Backend API Server
 
-1. Open a terminal (PowerShell or Command Prompt) and navigate to the project folder:
+1. Open a terminal (PowerShell or Command Prompt) and navigate to the `backend` folder:
    ```powershell
-   cd "c:\Users\KIIT\Desktop\New folder (3)\One-Click-Automation"
+   cd "c:\Users\KIIT\Desktop\New folder (3)\One-Click-Automation\backend"
    ```
-2. Activate the virtual environment:
+2. Activate the virtual environment (if using one):
    * **PowerShell**:
      ```powershell
-     .\venv\Scripts\Activate.ps1
+     ..\venv\Scripts\Activate.ps1
      ```
    * **Command Prompt**:
      ```cmd
-     .\venv\Scripts\activate.bat
+     ..\venv\Scripts\activate.bat
      ```
 3. Start the FastAPI backend server with Uvicorn:
    ```powershell
-   uvicorn backend.app:app --reload --port 8000
+   uvicorn app:app --reload --port 8000
    ```
+   *(Alternatively: `python main.py serve`)*
+   
    *The backend will be running at [http://localhost:8000](http://localhost:8000).*
 
 ---
 
-## Step 2: Run the React Frontend
+## Run via Command Line Interface (CLI)
 
-1. Open a **new** terminal window and navigate to the `frontend` folder:
-   ```powershell
-   cd "c:\Users\KIIT\Desktop\New folder (3)\One-Click-Automation\frontend"
-   ```
-2. Run the Vite development server:
-   ```powershell
-   npm run dev
-   ```
-3. Open your browser and navigate to the URL shown in the console (usually [http://localhost:5173](http://localhost:5173)).
+#### Post to all platforms (one-click)
+
+```bash
+python main.py post \
+  --image photo.jpg \
+  --description "Just launched our new product — months of work finally live!"
+```
+
+Or with short options:
+
+```bash
+python main.py post -i photo.jpg -d "Your caption here"
+```
 
 ---
 

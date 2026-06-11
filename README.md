@@ -1,4 +1,4 @@
-# One-Click Social Poster (Backend)
+# One-Click Social Poster
 
 Simple one-click social media posting. Upload one image, write your caption once — it posts to LinkedIn, Instagram, and Facebook automatically.
 
@@ -10,72 +10,45 @@ Simple one-click social media posting. Upload one image, write your caption once
 One-Click-Automation/
 ├── run_app.bat           ← Double click to run both backend and frontend on Windows!
 ├── backend/              ← Python FastAPI backend service
-│   ├── .env.example      ← copy to .env and fill in credentials
-│   ├── .env              ← your secrets (never commit this)
-│   ├── requirements.txt  ← backend Python dependencies
-│   ├── config.py         ← loads & validates all env vars
-│   ├── app.py            ← FastAPI server definition
-│   ├── main.py           ← CLI entry point (supports serve, post, check-config)
-│   ├── platforms/
-│   └── utils/
-└── frontend/             ← ReactJS frontend client
+├── frontend/             ← ReactJS frontend client
+└── README.md             ← This file
 ```
 
 ---
 
-## Setup
+## How to Run
+
+Please see the respective `run.md` files for running the backend and frontend:
+
+- **Backend**: [backend/run.md](backend/run.md)
+- **Frontend**: [frontend/run.md](frontend/run.md)
+
+---
+
+## Backend Setup & Configuration
 
 ### 1. Install dependencies
 
 ```bash
+cd backend
 pip install -r requirements.txt
 ```
 
 ### 2. Configure credentials
 
+Copy `.env.example` to `.env` in the `backend` directory.
+
 ```bash
-cp .env.example .env
+cp backend/.env.example backend/.env
 ```
 
-Then open `.env` and fill in your API keys (see **Getting Credentials** below).
+Then open `backend/.env` and fill in your API keys (see **Getting Credentials** below).
 
 ### 3. Verify config
 
 ```bash
+cd backend
 python main.py check-config
-```
-
----
-
-## Usage
-
-### Option A: Run via Web User Interface (Recommended)
-
-1. Start the backend FastAPI server:
-   ```bash
-   python main.py serve
-   ```
-2. Start the React frontend client in a separate terminal:
-   ```bash
-   cd ../frontend
-   npm run dev
-   ```
-   *(Alternatively, double click the `run_app.bat` script in the root directory to launch both servers with one click).*
-
-### Option B: Run via Command Line Interface (CLI)
-
-#### Post to all platforms (one-click)
-
-```bash
-python main.py post \
-  --image photo.jpg \
-  --description "Just launched our new product — months of work finally live!"
-```
-
-Or with short options:
-
-```bash
-python main.py post -i photo.jpg -d "Your caption here"
 ```
 
 ---
@@ -102,7 +75,7 @@ Instagram publishes via the **Meta Graph API** linked to a Facebook Business Pag
    - `instagram_basic`
    - `instagram_content_publish`
 4. Set `INSTAGRAM_ACCOUNT_ID` and `INSTAGRAM_ACCESS_TOKEN`
-5. **Important:** Instagram requires a **public image URL** — local file uploads are not supported. Either host your image (Imgur, Cloudinary, S3) and pass `--image-url`, or set `IMAGE_HOST_URL` in `.env`.
+5. **Important:** Instagram requires a **public image URL** — local file uploads are not supported. Either host your image (Imgur, Cloudinary, S3) and pass `--image-url`, or set `IMAGE_HOST_URL` in `backend/.env`.
 
 ### LinkedIn
 1. Go to https://developer.linkedin.com → My Apps → Create App
