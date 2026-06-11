@@ -1,4 +1,4 @@
-# Autoposter
+# One-Click Social Poster (Backend)
 
 Simple one-click social media posting. Upload one image, write your caption once — it posts to LinkedIn, Instagram, and Facebook automatically.
 
@@ -7,21 +7,18 @@ Simple one-click social media posting. Upload one image, write your caption once
 ## Project Structure
 
 ```
-autoposter/
-├── .env.example          ← copy to .env and fill in credentials
-├── .env                  ← your secrets (never commit this)
-├── requirements.txt
-├── config.py             ← loads & validates all env vars
-├── main.py               ← CLI entry point
-├── platforms/
-│   ├── __init__.py
-│   ├── base.py           ← abstract base class (PostPayload, PostResult)
-│   ├── facebook.py       ← Facebook Graph API adapter
-│   ├── instagram.py      ← Instagram Graph API adapter
-│   └── linkedin.py       ← LinkedIn UGC Posts API adapter
-└── utils/
-    ├── __init__.py
-    └── image.py          ← image validation + conversion helpers
+One-Click-Automation/
+├── run_app.bat           ← Double click to run both backend and frontend on Windows!
+├── backend/              ← Python FastAPI backend service
+│   ├── .env.example      ← copy to .env and fill in credentials
+│   ├── .env              ← your secrets (never commit this)
+│   ├── requirements.txt  ← backend Python dependencies
+│   ├── config.py         ← loads & validates all env vars
+│   ├── app.py            ← FastAPI server definition
+│   ├── main.py           ← CLI entry point (supports serve, post, check-config)
+│   ├── platforms/
+│   └── utils/
+└── frontend/             ← ReactJS frontend client
 ```
 
 ---
@@ -52,7 +49,22 @@ python main.py check-config
 
 ## Usage
 
-### Post to all platforms (one-click)
+### Option A: Run via Web User Interface (Recommended)
+
+1. Start the backend FastAPI server:
+   ```bash
+   python main.py serve
+   ```
+2. Start the React frontend client in a separate terminal:
+   ```bash
+   cd ../frontend
+   npm run dev
+   ```
+   *(Alternatively, double click the `run_app.bat` script in the root directory to launch both servers with one click).*
+
+### Option B: Run via Command Line Interface (CLI)
+
+#### Post to all platforms (one-click)
 
 ```bash
 python main.py post \
@@ -64,14 +76,6 @@ Or with short options:
 
 ```bash
 python main.py post -i photo.jpg -d "Your caption here"
-```
-
-That's it! Your image and caption will be posted to Facebook, Instagram, and LinkedIn automatically.
-
-### Check your config
-
-```bash
-python main.py check-config
 ```
 
 ---
@@ -112,15 +116,6 @@ Instagram publishes via the **Meta Graph API** linked to a Facebook Business Pag
    # Look for "id" in the response — your URN is urn:li:person:{id}
    ```
 5. Set `LINKEDIN_ACCESS_TOKEN` and `LINKEDIN_AUTHOR_URN`
-
----
-
-## Adding a New Platform
-
-1. Create `platforms/yourplatform.py`
-2. Subclass `BasePlatform` and implement `name` and `publish()`
-3. Add your config dataclass to `config.py`
-4. Register the adapter in `main.py`'s `_build_platform_adapters()`
 
 ---
 

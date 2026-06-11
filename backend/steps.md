@@ -34,7 +34,7 @@ Under **`--- Querying /me/accounts (Facebook Pages) ---`**, look for your Page n
 `Linked Instagram Business Account: <New_Instagram_ID_Here>`
 
 ### Step 2.4: Update `.env` configuration
-1. Open `autoposter/.env`.
+1. Open `backend/.env`.
 2. Replace the `INSTAGRAM_ACCOUNT_ID` value with the new ID retrieved in Step 2.3.
 3. Save the `.env` file.
 4. Run the autoposter again:

@@ -3,12 +3,10 @@ platforms/instagram.py
 ───────────────────────
 Posts a photo + caption to Instagram via the Meta Graph API.
 
-Instagram publishing is a two-step process:
-  1. Create a media container  →  POST /{ig-user-id}/media
-  2. Publish the container     →  POST /{ig-user-id}/media_publish
-
-Docs: https://developers.facebook.com/docs/instagram-api/reference/ig-user/media
-Note: Instagram requires a PUBLIC image URL — local files are not accepted.
+This module is designed to be beginner-friendly. Instagram posting is a 2-step process:
+  1. Create a media container (tells Instagram where the image is and the caption)
+  2. Publish the container (tells Instagram to post the container live)
+  3. Query the live post's URL (permalink) so the user can click it directly.
 """
 
 import time
@@ -18,14 +16,20 @@ from pathlib import Path
 from config import InstagramConfig
 from platforms.base import BasePlatform, PostPayload, PostResult
 
+# The base URL for Meta Graph API calls
 GRAPH_API = "https://graph.facebook.com/v19.0"
-CONTAINER_POLL_INTERVAL = 3   # seconds between status checks
-CONTAINER_MAX_POLLS = 10      # max retries before giving up
+CONTAINER_POLL_INTERVAL = 3   # How many seconds to wait between checking if container is ready
+CONTAINER_MAX_POLLS = 10      # Maximum number of checks before giving up
 
 
 class InstagramPlatform(BasePlatform):
+    """
+    Adapter that connects to the Instagram API.
+    Inherits from BasePlatform and implements the publish method.
+    """
 
     def __init__(self, cfg: InstagramConfig) -> None:
+        # Save the credentials passed in from config.py
         self._cfg = cfg
 
     @property
@@ -35,7 +39,13 @@ class InstagramPlatform(BasePlatform):
     # ── Step 1: Create media container ────────────────────────────────────────
 
     def _create_container(self, image_url: str, caption: str) -> tuple[str | None, str | None]:
-        """Returns (container_id, None) or (None, error_msg) on failure."""
+        """
+        Creates a media container on Instagram.
+        Returns:
+            (container_id, None) on success.
+            (None, error_message) on failure.
+        """
+        # We send a POST request to /{instagram_account_id}/media with our token, image URL, and caption.
         resp = requests.post(
             f"{GRAPH_API}/{self._cfg.account_id}/media",
             params={"access_token": self._cfg.access_token},
@@ -45,7 +55,7 @@ class InstagramPlatform(BasePlatform):
         try:
             data = resp.json()
             if "id" in data:
-                return data["id"], None
+                return data["id"], None # Successfully created container
             error = data.get("error", {})
             return None, f"{error.get('code', '?')}: {error.get('message', str(data))}"
         except Exception as exc:
@@ -54,7 +64,10 @@ class InstagramPlatform(BasePlatform):
     # ── Step 2: Wait for container to be ready ────────────────────────────────
 
     def _wait_for_container(self, container_id: str) -> bool:
-        """Poll until status_code == FINISHED (or timeout)."""
+        """
+        Meta processes the image in the background. We must poll the container
+        status and wait until status_code becomes "FINISHED" before publishing.
+        """
         for _ in range(CONTAINER_MAX_POLLS):
             resp = requests.get(
                 f"{GRAPH_API}/{container_id}",
@@ -69,12 +82,15 @@ class InstagramPlatform(BasePlatform):
                 return True
             if status == "ERROR":
                 return False
-            time.sleep(CONTAINER_POLL_INTERVAL)
+            time.sleep(CONTAINER_POLL_INTERVAL) # Sleep briefly before checking again
         return False
 
     # ── Step 3: Publish the container ─────────────────────────────────────────
 
     def _publish_container(self, container_id: str) -> dict:
+        """
+        Publish the processed media container to make the post live.
+        """
         resp = requests.post(
             f"{GRAPH_API}/{self._cfg.account_id}/media_publish",
             params={"access_token": self._cfg.access_token},
@@ -83,11 +99,14 @@ class InstagramPlatform(BasePlatform):
         )
         return resp.json()
 
+    # ── Step 4: Upload Local Image (If no public URL is provided) ─────────────
+
     def _upload_local_image(self, image_path: Path) -> str | None:
-        """Uploads a local image to a temporary file host and returns a public URL.
-        Tries tmpfiles.org first, then falls back to file.io.
         """
-        # Try tmpfiles.org
+        Instagram requires a public URL. If the user uploads a local image file,
+        we upload it to a temporary file sharing host to get a public URL.
+        """
+        # Try uploading to tmpfiles.org
         try:
             url = "https://tmpfiles.org/api/v1/upload"
             with open(image_path, "rb") as fh:
@@ -97,12 +116,12 @@ class InstagramPlatform(BasePlatform):
                 data = resp.json()
                 if data.get("status") == "success":
                     raw_url = data["data"]["url"]
-                    # Replace https://tmpfiles.org/ with https://tmpfiles.org/dl/ to get direct link
+                    # Convert tmpfiles URL to direct download URL (adds /dl/)
                     return raw_url.replace("https://tmpfiles.org/", "https://tmpfiles.org/dl/")
         except Exception:
             pass
 
-        # Try file.io fallback
+        # Try file.io as a fallback
         try:
             url = "https://file.io"
             with open(image_path, "rb") as fh:
@@ -117,11 +136,15 @@ class InstagramPlatform(BasePlatform):
 
         return None
 
-    # ── Public entry point ────────────────────────────────────────────────────
+    # ── Public Entry Point ────────────────────────────────────────────────────
 
     def publish(self, payload: PostPayload) -> PostResult:
+        """
+        Public entry point called to run the Instagram post logic.
+        """
         image_url = payload.image_url
 
+        # If we only have a local image file path, we need to upload it to a public URL first
         if not image_url and payload.image_path:
             image_path = Path(payload.image_path)
             if image_path.exists():
@@ -132,7 +155,6 @@ class InstagramPlatform(BasePlatform):
                         success=False,
                         error="Failed to upload local image to a temporary public URL.",
                     )
-                print(f"\n  [Instagram] Uploaded local image to temporary public URL: {image_url}")
             else:
                 return PostResult(
                     platform=self.name,
@@ -148,30 +170,52 @@ class InstagramPlatform(BasePlatform):
             )
 
         try:
-            # 1. Create container
+            # 1. Create the media container
             container_id, err = self._create_container(image_url, payload.caption)
             if not container_id:
                 return PostResult(
                     platform=self.name, success=False, error=f"Failed to create media container: {err}"
                 )
 
-            # 2. Wait for processing
+            # 2. Wait for Instagram to finish processing the image
             ready = self._wait_for_container(container_id)
             if not ready:
                 return PostResult(
                     platform=self.name, success=False, error="Container processing timed out or errored."
                 )
 
-            # 3. Publish
+            # 3. Publish the container
             result = self._publish_container(container_id)
 
             if "id" in result:
                 media_id = result["id"]
+                
+                # Fetch the correct live permalink from Instagram Graph API
+                # By querying the media ID directly, we get the exact post link.
+                live_url = None
+                try:
+                    resp_permalink = requests.get(
+                        f"{GRAPH_API}/{media_id}",
+                        params={
+                            "fields": "permalink",
+                            "access_token": self._cfg.access_token,
+                        },
+                        timeout=15,
+                    )
+                    if resp_permalink.status_code == 200:
+                        live_url = resp_permalink.json().get("permalink")
+                except Exception:
+                    pass
+
+                # If retrieving the permalink failed, fallback to a search/generic link
+                if not live_url:
+                    live_url = f"https://www.instagram.com/"
+
                 return PostResult(
                     platform=self.name,
                     success=True,
                     post_id=media_id,
-                    url=f"https://www.instagram.com/p/{media_id}/",
+                    url=live_url,
                 )
             else:
                 error = result.get("error", {})

@@ -1,0 +1,10 @@
+# Python files compilation cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Local environment secret credentials
+.env
+
+# Temp directory where uploads are stored before posting
+temp_uploads/

@@ -160,5 +160,22 @@ def check_config():
     console.print(table)
 
 
+@cli.command("serve")
+@click.option("--port", default=8000, help="Port to run the API server on")
+@click.option("--host", default="127.0.0.1", help="Host to run the API server on")
+def serve(port, host):
+    """Start the FastAPI backend server."""
+    import uvicorn
+    console.print(Panel(f"[bold green]Starting FastAPI backend server on http://{host}:{port}...[/]", border_style="dim"))
+    
+    # We run uvicorn programmatically. We specify app.py location
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).parent))
+    
+    uvicorn.run("app:app", host=host, port=port, reload=True)
+
+
 if __name__ == "__main__":
     cli()
+
