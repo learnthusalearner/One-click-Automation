@@ -187,8 +187,14 @@ async def post_content(
             except Exception:
                 pass
 
+@app.get("/health")
+def health_check():
+    """Simple health check endpoint for monitoring."""
+    return {"status": "ok"}
+
 # Serve frontend static assets if the production build exists
 dist_path = Path(__file__).parent.parent / "frontend" / "dist"
+
 if dist_path.exists():
     from fastapi.staticfiles import StaticFiles
     app.mount("/", StaticFiles(directory=str(dist_path), html=True), name="static")
