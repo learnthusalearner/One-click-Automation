@@ -12,7 +12,7 @@ from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from config import AppConfig
+from config import AppConfig, is_placeholder
 from platforms import PostPayload, FacebookPlatform, InstagramPlatform, LinkedInPlatform
 from utils import validate_image, prepare_image, ImageValidationError
 
@@ -53,12 +53,12 @@ def get_config_status():
         platform_details = {}
         for key in env_keys:
             val = os.getenv(key, "").strip()
-            present = bool(val)
+            present = not is_placeholder(val)
             if not present:
                 all_present = False
             
             # Mask value
-            masked = val[:6] + "..." + val[-4:] if len(val) > 12 else "****" if present else None
+            masked = val[:6] + "..." + val[-4:] if len(val) > 12 and present else "****" if present else None
             platform_details[key] = {
                 "present": present,
                 "masked": masked

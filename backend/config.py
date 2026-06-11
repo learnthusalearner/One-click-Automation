@@ -15,10 +15,15 @@ _ENV_PATH = Path(__file__).parent / ".env"
 load_dotenv(dotenv_path=_ENV_PATH, override=False)
 
 
+def is_placeholder(val: str) -> bool:
+    val_lower = val.lower()
+    return not val or "your_" in val_lower or "placeholder" in val_lower
+
+
 def _require(key: str) -> str:
     """Return env var or raise a descriptive error."""
     val = os.getenv(key, "").strip()
-    if not val:
+    if is_placeholder(val):
         raise EnvironmentError(
             f"Missing required environment variable: {key}\n"
             f"  → Copy .env.example to .env and fill in {key}"
